@@ -1,0 +1,26 @@
+app = "multi-cloud-routing"
+
+[[services]]
+  concurrency = "20,25"
+  internal_port = 8081
+  protocol = "tcp"
+
+  [services.port]
+
+    [services.port.443]
+      handlers = ["tls", "proxy_proto"]
+
+    [services.port.80]
+      handlers = ["proxy_proto"]
+
+  [[services.tcp_check]]
+    interval = "10s"
+    name = "alive"
+    timeout = "2s"
+
+[[services]]
+  internal_port = 9000
+  protocol = "tcp"
+
+  [services.port.10000]
+    handlers = ["proxy_proto"]
