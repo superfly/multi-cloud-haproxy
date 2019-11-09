@@ -1,48 +1,65 @@
 BEGIN {
-    min = -1;
     thresholds[0] = -1;
     thresholds[1] = -1;
     thresholds[2] = -1;
 }
 {
-    # only include upstream servers with passing health checks and a check latency
-    if($39 ~ /^[0-9]+$/ && $1 == "upstream" && ($37 == "L4OK" || $37 == "L6OK" || $37 == "PROCOK")) {
-        rtt = $39;
-        servers[$1 "/" $2] = rtt;
-        weights[$1 "/" $2] = $19;
-        status[$1 "/" $2] = $18
-        if(min < 0 || rtt < min){
-            min = rtt
+    rtt = int($3 * 1000); # work in ms
+    s = servers[$1 "/" $2];
+
+    # awk has no arrays so these are comma separated lists
+    if (s == ""){
+        s = rtt;
+    }else{
+        s = s "," rtt;
+    }
+    servers[$1 "/" $2] = s;
+}
+END {
+    for (s in servers){
+        server = split(servers[s], server, ",");
+        count = 0;
+        sum = 0;
+        for (i in server){
+            sum = sum + server[i];
+            count = count + 1;
         }
-        
-        #bucket = rtt * 1.5 # just use double rtt as a reasonable bucketing mechanism
-        t = rtt
+
+        # score with mean
+        score = sum / count;
+
+        # if we have enough samples for a 90th percentile, use that instead
+        if(count > 20) {
+            idx = int((0.9 * count) - 1);
+            pctile = server[idx]; # 90th percentile
+            score = percentile;
+        }
+
+        # this is just a brute force way to store the 3 best scores
+        t = score;
+        scores[s] = t;
         for(i in thresholds){
             if(t < thresholds[i] || thresholds[i] < 0){
                 old = thresholds[i]
                 thresholds[i] = t;
-                t = old
+                t = old;
             }
         }
     }
-}
-END {
-    max = thresholds[0]
-    range = max - min
-    if(range < 1){
-        range = 256
-    }
-    for (s in servers) {
-        weight = 0; # weight 0 should treat them as a backup
-        if(servers[s] <= thresholds[1]){
-            weight = 1
+
+    for (s in scores) {
+        rtt = scores[s];
+        weight = 0; # don't send traffic
+
+        if(rtt <= thresholds[1]){
+            weight = 1; # use second best score as backup
         }
-        if(servers[s] < threshold[0] || (servers[s] <= thresholds[1] && thresholds[1] < (1.5 * thresholds[0]))){
-            weight = int(256 - ((servers[s] - min) / (range)) * 256); # use best servers for real balancing
+        if(rtt <= thresholds[0]){
+            weight = 256; # use best score for favorite
         }
         if(weights[s] != weight){
             # send new weight to haproxy
-            print "set server " s " weight " weight;
+            print "set server " s " weight " int(weight);
         }
     }
 }

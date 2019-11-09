@@ -1,8 +1,11 @@
 #!/bin/sh
 
-code=`curl -s -o /dev/null -w "%{http_code}" https://$HAPROXY_SERVER_NAME:$HAPROXY_SERVER_PORT --resolve $HAPROXY_SERVER_NAME:443:$HAPROXY_SERVER_ADDR`
+output=`curl -s -o /dev/null -w "%{http_code}-%{time_starttransfer}" https://$HAPROXY_SERVER_NAME:$HAPROXY_SERVER_PORT --resolve $HAPROXY_SERVER_NAME:443:$HAPROXY_SERVER_ADDR`
+code=${output%-*}
+ttl=${output#*-}
 
 if [ "$code" == "200" ]; then
+  echo "$HAPROXY_PROXY_NAME $HAPROXY_SERVER_NAME $ttl" >> /tmp/times.txt
   exit 0
 else
   echo "error: https://$HAPROXY_SERVER_NAME:$HAPROXY_SERVER_PORT -> $code"

@@ -1,16 +1,24 @@
 app = "multi-cloud-routing"
 
+# primary service for 80 and 443
 [[services]]
   concurrency = "20,25"
+
+  # haproxy port that accepts proxy_proto
   internal_port = 8081
   protocol = "tcp"
 
+  # route public ports to 8081
   [services.port]
 
+    # listen globally on port 443
     [services.port.443]
+      # handle tls, send proxy_proto
       handlers = ["tls", "proxy_proto"]
 
+    # listen globally on port 80
     [services.port.80]
+      # send proxy_proto
       handlers = ["proxy_proto"]
 
   [[services.tcp_check]]
@@ -18,8 +26,9 @@ app = "multi-cloud-routing"
     name = "alive"
     timeout = "2s"
 
+# stats service
 [[services]]
-  internal_port = 9000
+  internal_port = 9001
   protocol = "tcp"
 
   [services.port.10000]
