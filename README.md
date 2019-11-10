@@ -4,7 +4,7 @@ This is an example HAProxy configuration for geo routing HTTP traffic across clo
 
 ## How it works
 
-This is a simple HAProxy configuration with a single `upstream` backend with endpoints in different cloud regions specified as servers. It uses an external script for server health checks, and records the latency of each health check request. Every few seconds, it calculates the 90th percentile latency for each server, picks the fastest, and sets it to the highest prioity in HAProxy. The second fastest "server" is
+This is a simple HAProxy configuration with a single `upstream` backend with endpoints in different cloud regions specified as servers. It uses an external script for server health checks, and records the latency of each health check request. Every few seconds, it calculates the 90th percentile latency for each server, picks the fastest, and sets it to the highest prioity in HAProxy.
 
 The example config uses a simple Docker container deployed to a few different cloud provider regions. It could be easily adapted to balance across FaaS endpoints, or distribute TCP connections.
 
@@ -21,6 +21,9 @@ server flyio-helloworld-eu.herokuapp.com flyio-helloworld-eu.herokuapp.com:443 c
 ## heroku dyno in viginia
 server flyio-helloworld.herokuapp.com flyio-helloworld.herokuapp.com:443 check ssl check-ssl verify none weight 0
 ```
+
+Latency calculations are done with AWK + shell script (`scripts/set_server_weights.sh`), and run periodically with a "fake" HAProxy backend with an external health check setup. HAProxy servers support integer based weights between zero and 256 for distributing traffic, so the fastest available endpoint gets a weight of 256, the next fastest gets a weight of 1 (to use as a backup), and the remainder gets weights of 0 (effectively disabling them).
+
 
 #### Important files
 
