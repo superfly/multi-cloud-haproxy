@@ -1,8 +1,26 @@
 # Multi Cloud Routing with HAProxy
 
-This is an example project for geo routing HTTP traffic with HAProxy. It's designed to run on the [fly.io Global Container Runtime](https://fly.io/docs/future/), but is easily deployed on any infrastructure that can run Docker Images and accept traffic globally.
+This is an example HAProxy configuration for geo routing HTTP traffic across cloud providers. It's designed to run on the [fly.io Global Container Runtime](https://fly.io/docs/future/), but is easily deployed on any infrastructure that can run Docker Images and accept traffic globally.
 
-The example config routes traffic across two regions with Google Cloud Run containers running, and Heroku apps in both Heroku regions (`us-east`, `eu-west`).
+## How it works
+
+This is a simple HAProxy configuration with a single `upstream` backend with endpoints in different cloud regions specified as servers. It uses an external script for server health checks, and records the latency of each health check request. Every few seconds, it calculates the 90th percentile latency for each server, picks the fastest, and sets it to the highest prioity in HAProxy. The second fastest "server" is
+
+The example config uses a simple Docker container deployed to a few different cloud provider regions. It could be easily adapted to balance across FaaS endpoints, or distribute TCP connections.
+
+```haproxy
+## google cloud run container in us-central
+server helloworld-i7p6d4rcpq-uc.a.run.app helloworld-i7p6d4rcpq-uc.a.run.app:443 check ssl check-ssl verify none weight 0
+
+## google cloud run container in europe
+server helloworld-i7p6d4rcpq-ew.a.run.app helloworld-i7p6d4rcpq-ew.a.run.app:443 check ssl check-ssl verify none weight 0
+
+## heroku dyno in europe
+server flyio-helloworld-eu.herokuapp.com flyio-helloworld-eu.herokuapp.com:443 check ssl check-ssl verify none weight 0
+
+## heroku dyno in viginia
+server flyio-helloworld.herokuapp.com flyio-helloworld.herokuapp.com:443 check ssl check-ssl verify none weight 0
+```
 
 #### Important files
 
